@@ -1,0 +1,72 @@
+name: Pull Docker Images
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      free_space:
+        description: '清理磁盘空间（大镜像建议开启）'
+        type: boolean
+        default: false
+  
+  # 定时触发（可选，每天凌晨2点）
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # 代码推送触发（可选）
+  push:
+    branches: [ "main" ]
+    paths:
+      - '.github/workflows/pull-docker-images.yml'
+
+jobs:
+  pull-images:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 步骤1：检出代码
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    # 步骤2：清理磁盘空间（可选）
+    - name: Free Disk Space
+      if: ${{ github.event.inputs.free_space == 'true' }}
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
+    
+    # 步骤3：登录 Docker Hub（如果镜像需要认证）
+    # 如果镜像是公开的，可以跳过此步骤
+    - name: Login to Docker Hub
+      if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    # 步骤4：拉取第一个镜像
+    - name: Pull wantcat/trendradar
+      run: |
+        echo "正在拉取 wantcat/trendradar 镜像..."
+        docker pull wantcat/trendradar || echo "拉取失败，可能镜像不存在或需要认证"
+        docker images | grep wantcat/trendradar || true
+    
+    # 步骤5：拉取第二个镜像
+    - name: Pull wantcat/trendradar-mcp
+      run: |
+        echo "正在拉取 wantcat/trendradar-mcp 镜像..."
+        docker pull wantcat/trendradar-mcp || echo "拉取失败，可能镜像不存在或需要认证"
+        docker images | grep wantcat/trendradar-mcp || true
+    
+    # 步骤6：显示拉取结果
+    - name: Show Pull Results
+      run: |
+        echo "=== 已拉取的镜像列表 ==="
+        docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+        echo "========================="
