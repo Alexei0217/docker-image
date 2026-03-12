@@ -1,0 +1,46 @@
+name: Sync Images to Aliyun
+
+on:
+  push: # 或其他触发事件，根据您的需求调整
+    branches: [ main ]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      # 步骤 1：拉取镜像（假设已存在，根据您的实际情况调整）
+      - name: Pull Docker Images
+        run: |
+          docker pull ghcr.io/dependabot/dependabot-updater-core:latest
+          docker pull wantcat/trendradar-mcp:latest
+          docker pull wantcat/trendradar:latest
+
+      # 步骤 2：登录阿里云容器镜像服务
+      - name: Login to Aliyun Container Registry
+        run: |
+          echo "${{ secrets.ALIYUN_PASSWORD }}" | docker login \
+            --username "${{ secrets.ALIYUN_USERNAME }}" \
+            --password-stdin ${{ vars.ALIYUNDOCKER }}
+
+      # 步骤 3：重新打标签并推送镜像到阿里云
+      - name: Retag and Push Images to Aliyun
+        run: |
+          # 定义阿里云仓库地址，从变量 ALIYUNDocker 获取
+          ALIYUN_REGISTRY="${{ vars.ALIYUNDOCKER }}"
+          
+          # 为每个镜像重新打标签并推送
+          # 注意：阿里云仓库地址通常包含命名空间，请确保地址格式正确。
+          # 例如，如果 ALIYUNDocker 是 "registry.cn-hangzhou.aliyuncs.com/my-namespace"，
+          # 则镜像标签应为 "registry.cn-hangzhou.aliyuncs.com/my-namespace/image-name:latest"
+          
+          # 镜像 1: ghcr.io/dependabot/dependabot-updater-core:latest
+          docker tag ghcr.io/dependabot/dependabot-updater-core:latest $ALIYUN_REGISTRY/dependabot-updater-core:latest
+          docker push $ALIYUN_REGISTRY/dependabot-updater-core:latest
+          
+          # 镜像 2: wantcat/trendradar-mcp:latest
+          docker tag wantcat/trendradar-mcp:latest $ALIYUN_REGISTRY/trendradar-mcp:latest
+          docker push $ALIYUN_REGISTRY/trendradar-mcp:latest
+          
+          # 镜像 3: wantcat/trendradar:latest
+          docker tag wantcat/trendradar:latest $ALIYUN_REGISTRY/trendradar:latest
+          docker push $ALIYUN_REGISTRY/trendradar:latest
